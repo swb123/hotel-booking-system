@@ -57,7 +57,7 @@ src/main/resources/
 ├── schema.sql               幂等建表（H2/MySQL 通用）
 ├── mapper/*.xml             行锁 SQL
 └── static/                  前端静态 SPA（零构建零 CDN）
-src/test/java/                30 个自动化用例（含并发防超卖）
+src/test/java/                47 个自动化用例（含悲观/乐观双模式并发防超卖）
 docs/                         过程文档（需求/技术/测试/亮点/AI 协作）
 ```
 
