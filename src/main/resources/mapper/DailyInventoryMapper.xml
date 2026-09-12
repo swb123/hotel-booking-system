@@ -20,4 +20,18 @@
         FOR UPDATE
     </select>
 
+    <!--
+      乐观扣减（防超卖方案二）：条件原子更新。
+      - WHERE 条件即"校验"：sold + count <= total 才执行，单语句原子，无查改竞态窗口；
+      - 受影响行数 0 = 房量不足（并发下另一个事务已扣至上限）；
+      - 相比版本号乐观锁（version + CAS 回写），计数器场景不需要 version 字段，
+        数据库内部已消除竞态；相比 FOR UPDATE，无锁等待，低竞争下吞吐更高。
+    -->
+    <update id="tryDeduct">
+        UPDATE daily_inventory
+        SET sold_rooms = sold_rooms + #{count}
+        WHERE id = #{id}
+          AND sold_rooms + #{count} &lt;= total_rooms
+    </update>
+
 </mapper>

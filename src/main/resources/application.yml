@@ -43,3 +43,5 @@ app:
   booking:
     max-stay-nights: 30
     max-rooms-per-order: 5
+    # 库存扣减策略：pessimistic（行锁，默认）/ optimistic（条件原子更新，零锁等待）
+    inventory-mode: pessimistic

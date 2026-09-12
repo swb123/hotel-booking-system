@@ -64,9 +64,11 @@ docs/                         过程文档（需求/技术/测试/亮点/AI 协�
 ## 测试
 
 ```bash
-mvn test     # 45/45：领域单测 + HTTP 集成 + 并发防超卖 + 无死锁 + LOS；含 JaCoCo 覆盖率
+mvn test     # 47/47：领域单测 + HTTP 集成 + 并发防超卖(悲观/乐观双模式) + 无死锁 + LOS；含 JaCoCo 覆盖率
 mvn test -Dtest=BenchmarkTest -Dexcluded.groups=none   # 性能基准（串行 262 TPS，数据见 docs/04）
 ```
+
+库存并发控制双模式：`app.booking.inventory-mode: pessimistic（默认，行锁）| optimistic（条件原子更新，零锁等待）`，各配同规格并发测试（docs/02 §5.3）。
 
 ## 生产切换 MySQL（可选演示）
 

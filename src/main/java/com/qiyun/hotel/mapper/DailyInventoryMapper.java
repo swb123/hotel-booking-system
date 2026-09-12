@@ -18,4 +18,11 @@ public interface DailyInventoryMapper extends BaseMapper<DailyInventory> {
      */
     List<DailyInventory> lockByTypeAndDates(@Param("roomTypeId") Long roomTypeId,
                                             @Param("dates") List<LocalDate> dates);
+
+    /**
+     * 乐观扣减（条件原子更新）：单条 SQL 内完成"校验+扣减"，无锁等待。
+     * 仅当扣减后不超卖才生效；返回受影响行数（0 = 房量不足）。
+     * 多晚订单：逐晚执行，任一行失败由事务整体回滚保证一致性。
+     */
+    int tryDeduct(@Param("id") Long id, @Param("count") int count);
 }

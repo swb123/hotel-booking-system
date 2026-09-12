@@ -31,5 +31,11 @@ public class AppProperties {
         private int maxRoomsPerOrder = 5;
         /** 预订窗口：最多提前多少天（保证不越过库存预生成窗口） */
         private int maxAdvanceDays = 45;
+        /**
+         * 库存扣减策略：pessimistic=行锁(FOR UPDATE，默认) / optimistic=条件原子更新
+         * 两种模式均有并发防超卖测试证明（ConcurrencyTest / OptimisticInventoryTest），
+         * 生产选择建议：低竞争用 optimistic（零锁等待吞吐更高），热点日期段切 Redis Lua（见 docs/02 §5）。
+         */
+        private String inventoryMode = "pessimistic";
     }
 }

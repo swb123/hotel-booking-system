@@ -47,8 +47,9 @@ import lombok.RequiredArgsConstructor;
  * <p>防超卖流程（同一事务内，任一步失败整体回滚）：
  * <ol>
  *   <li>幂等快速路径：request_id 命中直接返回已存在订单（防双击/重试）；</li>
- *   <li>SELECT ... FOR UPDATE 锁定 [入住日, 离店日) 每日库存行（日期升序防死锁）；</li>
- *   <li>锁内校验剩余房量 ≥ 需求，不足抛 INSUFFICIENT_INVENTORY；</li>
+ *   <li>库存扣减（策略可切换，见 {@link com.qiyun.hotel.config.AppProperties.Booking#getInventoryMode}）：
+ *       pessimistic——SELECT ... FOR UPDATE 锁定每日库存行（日期升序防死锁）+ 锁内校验；
+ *       optimistic——条件原子更新（tryDeduct），零锁等待，冲突由受影响行数判定；</li>
  *   <li>按价格日历计价（DECIMAL），落单 + 状态流水 + 扣减库存。</li>
  * </ol>
  * 并发重复提交撞 request_id 唯一索引时，本事务回滚（含库存扣减），返回已落库的订单 —— 幂等语义。
@@ -120,27 +121,54 @@ public class BookingService {
                 .ge(LosRule::getEndDate, req.getCheckIn()));
         LosPolicy.validate(losRules, req.getCheckIn(), req.getCheckOut());
 
-        // 3) 行锁锁定每日库存（防超卖核心：锁内校验-扣减）
-        List<DailyInventory> locked = inventoryMapper.lockByTypeAndDates(roomType.getId(), dates);
-        if (locked.size() != dates.size()) {
-            throw new BizException(ErrorCode.INVENTORY_NOT_READY, "部分日期的房量库存尚未初始化，请联系管理员");
-        }
-
-        // 4) 锁内二次幂等检查：并发同 requestId 重放时，等行锁的后来者在拿到锁后
-        //    能看到已提交的订单并直接返回，而不是先撞"房量不足"破坏幂等契约
-        HotelOrder existing = findByRequestId(req.getRequestId());
-        if (existing != null) {
-            return OrderAssembler.single(existing, roomTypeMapper, logMapper);
-        }
-        for (DailyInventory inv : locked) {
-            int remaining = inv.getTotalRooms() - inv.getSoldRooms();
-            if (remaining < roomCount) {
-                throw new BizException(ErrorCode.INSUFFICIENT_INVENTORY,
-                        String.format("%s 房量不足：剩余 %d 间，需要 %d 间", inv.getBizDate(), remaining, roomCount));
+        // 3) 库存扣减：两种策略可切换（app.booking.inventory-mode），均有并发防超卖测试证明：
+        //    pessimistic（默认）——SELECT ... FOR UPDATE 行锁，锁内校验，冲突=排队等待（公平、确定）
+        //    optimistic          ——条件原子更新（tryDeduct），零锁等待，冲突=受影响行数判定+事务回滚
+        boolean optimistic = "optimistic".equalsIgnoreCase(props.getBooking().getInventoryMode());
+        List<DailyInventory> inventoryRows;
+        if (optimistic) {
+            // 乐观路径：幂等二次检查前置（无锁可依，检查后扣减；
+            // 残余竞态由 request_id 唯一索引 + 外层 DuplicateKey 回滚兜底）
+            HotelOrder existing = findByRequestId(req.getRequestId());
+            if (existing != null) {
+                return OrderAssembler.single(existing, roomTypeMapper, logMapper);
+            }
+            inventoryRows = inventoryMapper.selectList(new LambdaQueryWrapper<DailyInventory>()
+                    .eq(DailyInventory::getRoomTypeId, roomType.getId())
+                    .in(DailyInventory::getBizDate, dates)
+                    .orderByAsc(DailyInventory::getBizDate));
+            if (inventoryRows.size() != dates.size()) {
+                throw new BizException(ErrorCode.INVENTORY_NOT_READY, "部分日期的房量库存尚未初始化，请联系管理员");
+            }
+            for (DailyInventory inv : inventoryRows) {
+                if (inventoryMapper.tryDeduct(inv.getId(), roomCount) == 0) {
+                    // 提示语中的剩余量取自扣减前快照，并发下可能略旧，仅用于提示
+                    throw new BizException(ErrorCode.INSUFFICIENT_INVENTORY,
+                            String.format("%s 房量不足：剩余 %d 间，需要 %d 间", inv.getBizDate(),
+                                    inv.getTotalRooms() - inv.getSoldRooms(), roomCount));
+                }
+            }
+        } else {
+            inventoryRows = inventoryMapper.lockByTypeAndDates(roomType.getId(), dates);
+            if (inventoryRows.size() != dates.size()) {
+                throw new BizException(ErrorCode.INVENTORY_NOT_READY, "部分日期的房量库存尚未初始化，请联系管理员");
+            }
+            // 锁内二次幂等检查：并发同 requestId 重放时，等行锁的后来者在拿到锁后
+            // 能看到已提交的订单并直接返回，而不是先撞"房量不足"破坏幂等契约
+            HotelOrder existing = findByRequestId(req.getRequestId());
+            if (existing != null) {
+                return OrderAssembler.single(existing, roomTypeMapper, logMapper);
+            }
+            for (DailyInventory inv : inventoryRows) {
+                int remaining = inv.getTotalRooms() - inv.getSoldRooms();
+                if (remaining < roomCount) {
+                    throw new BizException(ErrorCode.INSUFFICIENT_INVENTORY,
+                            String.format("%s 房量不足：剩余 %d 间，需要 %d 间", inv.getBizDate(), remaining, roomCount));
+                }
             }
         }
 
-        // 5) 价格日历计价（缺失日期回退基准价，见 PricingPolicy）
+        // 4) 价格日历计价（缺失日期回退基准价，见 PricingPolicy）
         Map<LocalDate, BigDecimal> calendar = priceMapper.selectList(new LambdaQueryWrapper<DailyPrice>()
                         .eq(DailyPrice::getRoomTypeId, roomType.getId())
                         .in(DailyPrice::getBizDate, dates))
@@ -148,7 +176,7 @@ public class BookingService {
                 .collect(Collectors.toMap(DailyPrice::getBizDate, DailyPrice::getPrice, (a, b) -> a));
         BigDecimal total = PricingPolicy.total(roomType, dates, calendar, roomCount);
 
-        // 6) 落单 + 状态流水 + 扣减库存
+        // 5) 落单 + 状态流水 + 扣减库存
         LocalDateTime now = LocalDateTime.now(clock);
         HotelOrder order = new HotelOrder();
         order.setOrderNo(orderNoGenerator.next());
@@ -168,9 +196,12 @@ public class BookingService {
 
         writeLog(order.getId(), null, OrderStatus.PENDING_PAYMENT, "guest", "提交预订，已锁定房量", now);
 
-        for (DailyInventory inv : locked) {
-            inv.setSoldRooms(inv.getSoldRooms() + roomCount);
-            inventoryMapper.updateById(inv);
+        if (!optimistic) {
+            // 悲观路径：扣减在落单后执行（乐观路径已在 tryDeduct 完成扣减，同事务下失败会整体回滚）
+            for (DailyInventory inv : inventoryRows) {
+                inv.setSoldRooms(inv.getSoldRooms() + roomCount);
+                inventoryMapper.updateById(inv);
+            }
         }
 
         log.info("订单创建成功 orderNo={} 房型={} 日期={}~{} 间数={} 金额={}",
