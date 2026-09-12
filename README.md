@@ -86,5 +86,5 @@ java -jar target/hotel-booking.jar --spring.profiles.active=mysql
 | 使用的 Skill | docs/05-AI协作过程.md（dataviz / code-review 等） |
 | 使用的 Agent | docs/05-AI协作过程.md（前端子 Agent / 评审 Agent） |
 | 过程文档 | docs/01 需求方案 · 02 技术方案 · 03 测试用例 |
-| 产品效果截图 | docs/screenshots/ |
+| 产品效果（截图与录屏） | docs/screenshots/ —— 7 张流程截图 + 演示文档.mov（全流程录屏，41MB） |
 | 实现思路与技术亮点 | docs/04-实现思路与技术亮点.md |
