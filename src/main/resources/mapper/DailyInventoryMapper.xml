@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.qiyun.hotel.mapper.DailyInventoryMapper">
+
+    <!--
+      防超卖核心 SQL：SELECT ... FOR UPDATE
+      - MySQL / H2(MODE=MySQL) 均支持行级 FOR UPDATE 锁；
+      - ORDER BY biz_date 固定加锁顺序，并发事务交叉锁定不同日期时不会死锁；
+      - 用法：事务内先锁 → 校验 sold < total → 扣减，锁外任何读都看不到未提交的扣减。
+    -->
+    <select id="lockByTypeAndDates" resultType="com.qiyun.hotel.domain.entity.DailyInventory">
+        SELECT id, room_type_id, biz_date, total_rooms, sold_rooms
+        FROM daily_inventory
+        WHERE room_type_id = #{roomTypeId}
+          AND biz_date IN
+        <foreach collection="dates" item="d" open="(" separator="," close=")">
+            #{d}
+        </foreach>
+        ORDER BY biz_date
+        FOR UPDATE
+    </select>
+
+</mapper>

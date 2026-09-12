@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.qiyun.hotel.mapper.HotelOrderMapper">
+
+    <!-- 状态流转前对订单行加锁：并发下同一订单只会有一个操作成功，其余等待后校验状态机被拒 -->
+    <select id="selectForUpdateByOrderNo" resultType="com.qiyun.hotel.domain.entity.HotelOrder">
+        SELECT * FROM hotel_order WHERE order_no = #{orderNo} FOR UPDATE
+    </select>
+
+</mapper>

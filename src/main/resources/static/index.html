@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>栖云酒店预订管理系统</title>
+<link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><rect width="24" height="24" rx="6" fill="%232a78d6"/><path d="M6 15a3.6 3.6 0 0 0 3.6 3.6h7.4a3 3 0 0 0 1.06-5.81 2.4 2.4 0 0 0-3-3.07A4.2 4.2 0 0 0 6.9 11.5 3.6 3.6 0 0 0 6 15Z" fill="white" transform="translate(0 -1.2)"/></svg>'>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="#/booking" aria-label="栖云酒店预订管理系统 首页">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M2.25 15a4.5 4.5 0 0 0 4.5 4.5H18a3.75 3.75 0 0 0 1.33-7.26 3 3 0 0 0-3.76-3.84 5.25 5.25 0 0 0-10.23 2.33A4.5 4.5 0 0 0 2.25 15Z"/></svg>
+      </span>
+      <span class="brand-text">
+        <span class="brand-name">栖云酒店预订管理系统</span>
+        <span class="brand-sub">Qiyun Hotel · Booking &amp; Front Desk</span>
+      </span>
+    </a>
+    <nav class="tabs" aria-label="主导航">
+      <a href="#/booking" class="tab" data-route="booking">预订房间</a>
+      <a href="#/orders" class="tab" data-route="orders">订单查询</a>
+      <a href="#/frontdesk" class="tab" data-route="frontdesk">前台管理</a>
+    </nav>
+    <div class="topbar-actions">
+      <button id="theme-toggle" class="icon-btn" type="button" aria-label="切换深浅色主题" title="切换深浅色主题">🌙</button>
+    </div>
+  </div>
+</header>
+
+<main class="main">
+
+  <!-- ============ 视图一：预订房间 ============ -->
+  <section id="view-booking" class="view" hidden>
+    <h1 class="sr-only">预订房间</h1>
+
+    <div class="card date-card">
+      <div class="date-fields">
+        <label class="field">
+          <span class="field-label">入住日期</span>
+          <input type="date" id="bk-checkin" class="input">
+        </label>
+        <span class="date-sep" aria-hidden="true">→</span>
+        <label class="field">
+          <span class="field-label">离店日期</span>
+          <input type="date" id="bk-checkout" class="input">
+        </label>
+        <div class="nights-chip" role="status">共 <strong id="bk-nights">1</strong> 晚</div>
+      </div>
+      <div class="date-meta">
+        <span class="tag tag-weekend">周末价</span>
+        <span class="meta-text">周五 / 周六晚价格上浮 20%</span>
+        <span class="meta-dot" aria-hidden="true">·</span>
+        <span class="meta-text">单次入住最长 30 晚</span>
+      </div>
+      <div class="date-actions">
+        <button id="bk-query" class="btn btn-primary">查询房态</button>
+      </div>
+    </div>
+
+    <div id="bk-list-wrap">
+      <div id="bk-list" class="room-grid" aria-live="polite"></div>
+    </div>
+
+    <div id="bk-step2" class="panel" hidden></div>
+    <div id="bk-step3" class="panel" hidden></div>
+  </section>
+
+  <!-- ============ 视图二：订单查询 ============ -->
+  <section id="view-orders" class="view" hidden>
+    <h1 class="sr-only">订单查询</h1>
+
+    <div class="card search-card">
+      <label class="field-label" for="od-input">手机号 / 订单号</label>
+      <div class="search-row">
+        <input id="od-input" class="input search-input" autocomplete="off" spellcheck="false"
+               placeholder="输入 11 位手机号，或订单号（如 HB20260907100001）">
+        <button id="od-search" class="btn btn-primary">查询</button>
+      </div>
+      <p class="search-hint">按手机号查询返回全部历史订单；按订单号查询直达详情（含状态时间线）。</p>
+    </div>
+
+    <div id="od-results" class="stack" aria-live="polite"></div>
+  </section>
+
+  <!-- ============ 视图三：前台管理 ============ -->
+  <section id="view-frontdesk" class="view" hidden>
+    <h1 class="sr-only">前台管理</h1>
+
+    <div id="fd-stats" class="stats-row" aria-live="polite"></div>
+
+    <div class="card chart-card">
+      <div class="card-head">
+        <div>
+          <h2 class="card-title">分房型入住率</h2>
+          <p class="card-sub">今日 · 已售间数 ÷ 总房数</p>
+        </div>
+      </div>
+      <div id="fd-occupancy" class="bar-chart" role="list"></div>
+      <div class="table-wrap chart-table">
+        <table class="table">
+          <thead>
+            <tr><th>房型</th><th class="num">总房数</th><th class="num">已售间数</th><th class="num">入住率</th></tr>
+          </thead>
+          <tbody id="fd-occupancy-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card table-card">
+      <div class="card-head card-head--filters">
+        <div>
+          <h2 class="card-title">前台订单</h2>
+          <p class="card-sub">按状态 / 入住日期筛选，行内办理入住与退房</p>
+        </div>
+        <div class="filter-row">
+          <select id="fd-status" class="input select" aria-label="按状态筛选">
+            <option value="">全部状态</option>
+            <option value="PENDING_PAYMENT">待支付</option>
+            <option value="CONFIRMED">已确认</option>
+            <option value="CHECKED_IN">已入住</option>
+            <option value="CHECKED_OUT">已退房</option>
+            <option value="CANCELLED">已取消</option>
+          </select>
+          <input type="date" id="fd-date" class="input" aria-label="按入住日期筛选">
+          <button id="fd-refresh" class="btn btn-ghost" type="button">刷新</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="table fd-table">
+          <thead>
+            <tr>
+              <th>订单号</th><th>房型</th><th>入住人</th><th>入住</th><th>离店</th>
+              <th class="num">间数</th><th class="num">金额</th><th>状态</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="fd-tbody" aria-live="polite"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  栖云酒店预订管理系统 · 演示环境 · 数据由本地后端 API 提供
+</footer>
+
+<div id="toast-root" class="toast-root" aria-live="polite"></div>
+
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

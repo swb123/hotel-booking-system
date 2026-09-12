@@ -1,0 +1,20 @@
+# 可选：真实 MySQL 演示环境（默认演示用 H2 文件库，零依赖不翻车）
+# 使用方式：
+#   docker compose up -d
+#   bash run.sh 并追加 --spring.profiles.active=mysql
+# 或直接：java -jar target/hotel-booking.jar --spring.profiles.active=mysql
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: hotel-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: hotel_booking
+    ports:
+      - "3306:3306"
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - hotel_mysql_data:/var/lib/mysql
+
+volumes:
+  hotel_mysql_data:

@@ -1,0 +1,18 @@
+# 生产/真实 MySQL 配置：java -jar hotel-booking.jar --spring.profiles.active=mysql
+# 可选：docker compose up -d 一键起 MySQL（见根目录 docker-compose.yml）
+# 说明：SQL 与 H2 演示模式完全一致（H2 以 MODE=MySQL 运行），切换只改数据源。
+# 安全：生产 profile 显式关闭演示数据初始化与 H2 控制台（杜绝演示数据进生产库/未授权 SQL 控制台）。
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/hotel_booking?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf8&allowPublicKeyRetrieval=true
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: root
+    password: root
+  h2:
+    console:
+      enabled: false
+
+app:
+  seed:
+    enabled: false
+    demo-orders: false

@@ -1,0 +1,45 @@
+spring:
+  application:
+    name: hotel-booking
+  datasource:
+    # 演示默认：H2 文件模式 + MySQL 兼容模式，零外部依赖
+    # 生产切换：--spring.profiles.active=mysql（见 application-mysql.yml，同一套 SQL）
+    url: jdbc:h2:file:./data/hotel;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;LOCK_TIMEOUT=10000
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+server:
+  port: 8080
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  mapper-locations: classpath:mapper/*.xml
+  global-config:
+    banner: false
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+
+# 业务配置
+app:
+  seed:
+    # 启动时幂等初始化：房型 + 自动补足未来 60 天库存/价格日历 + 演示订单
+    enabled: true
+    demo-orders: true
+    inventory-days: 60
+  booking:
+    max-stay-nights: 30
+    max-rooms-per-order: 5
