@@ -38,7 +38,10 @@ CREATE TABLE IF NOT EXISTS daily_price (
 
 -- LOS 收益管理约束：按"房型 × 日期段"限制最少/最多连住晚数（MinLOS/MaxLOS）
 -- 例：国庆档 DB 房型 09-19 ~ 09-21 最少连住 2 晚
--- 库存仍是 Daily 粒度，LOS 是叠加在其上的约束层（行业对应：房价码/RatePlan 维度）
+-- 库存仍是 Daily 粒度，LOS 是叠加在其上的约束层。
+-- 领域定位（诚实标注）：行业标准中 LOS 挂在房价码（RatePlan）维度，与价格同属收益管理对象；
+-- 本系统为单房价码（BAR-only）简化，规则直接挂房型。多房价码演进：
+--   新增 rate_plan 表 → daily_price 与 los_rule 均挂 rate_plan_id → 预订先选房价码再校验。
 CREATE TABLE IF NOT EXISTS los_rule (
     id           BIGINT AUTO_INCREMENT PRIMARY KEY,
     room_type_id BIGINT NOT NULL,
