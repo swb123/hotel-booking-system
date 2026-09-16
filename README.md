@@ -88,3 +88,4 @@ java -jar target/hotel-booking.jar --spring.profiles.active=mysql
 | 过程文档 | docs/01 需求方案 · 02 技术方案 · 03 测试用例 |
 | 产品效果（截图与录屏） | docs/screenshots/ —— 7 张流程截图 + 演示文档.mov（全流程录屏，41MB） |
 | 实现思路与技术亮点 | docs/04-实现思路与技术亮点.md |
+| 面试题与参考答案（附加） | docs/06-面试题与参考答案.md（24 题：项目答辩 + 酒店业务领域） |
